@@ -133,12 +133,13 @@ class Distribution():
     # Load the values, tangents, and x-coordinate scaling of a spline that
     # approximates the partition function. This was produced by running
     # the script in fit_partition_spline.py
-    with resource_stream(__name__, 'resources/partition_spline.npz') \
-      as spline_file:
-      with np.load(spline_file, allow_pickle=False) as f:
-        self._spline_x_scale = torch.tensor(f['x_scale'])
-        self._spline_values = torch.tensor(f['values'])
-        self._spline_tangents = torch.tensor(f['tangents'])
+    # with resource_stream(__name__, 'partition_spline.npz') \
+    #   as spline_file:
+    spline_file = 'partition_spline_data.npz'
+    with np.load(spline_file, allow_pickle=False) as f:
+      self._spline_x_scale = torch.tensor(f['x_scale'])
+      self._spline_values = torch.tensor(f['values'])
+      self._spline_tangents = torch.tensor(f['tangents'])
 
   def log_base_partition_function(self, alpha):
     r"""Approximate the distribution's log-partition function with a 1D spline.
@@ -209,75 +210,86 @@ class Distribution():
     nll = loss + log_partition
     return nll
 
-  def draw_samples(self, alpha, scale):
-    r"""Draw samples from the robust distribution.
+if __name__ == '__main__':
+    dist = Distribution()
+    
+    x = torch.tensor([[0], [2.]])
+    alpha = torch.tensor([2.])
+    scale = torch.tensor([1.])
+    
+    print(dist.nllfun(x, alpha, scale))
 
-    This function implements Algorithm 1 the paper. This code is written to
-    allow
-    for sampling from a set of different distributions, each parametrized by its
-    own alpha and scale values, as opposed to the more standard approach of
-    drawing N samples from the same distribution. This is done by repeatedly
-    performing N instances of rejection sampling for each of the N distributions
-    until at least one proposal for each of the N distributions has been
-    accepted.
-    All samples are drawn with a zero mean, to use a non-zero mean just add each
-    mean to each sample.
-
-    Args:
-      alpha: A tensor/scalar or numpy array/scalar of floats where each element
-        is the shape parameter of that element's distribution.
-      scale: A tensor/scalar or numpy array/scalar of floats where each element
-        is the scale parameter of that element's distribution. Must be the same
-        shape as `alpha`.
-
-    Returns:
-      A tensor with the same shape and precision as `alpha` and `scale` where
-      each element is a sample drawn from the distribution specified for that
-      element by `alpha` and `scale`.
-    """
-    alpha = torch.as_tensor(alpha)
-    scale = torch.as_tensor(scale)
-    assert (alpha >= 0).all()
-    assert (scale >= 0).all()
-    float_dtype = alpha.dtype
-    assert scale.dtype == float_dtype
-
-    cauchy = torch.distributions.cauchy.Cauchy(0., np.sqrt(2.))
-    uniform = torch.distributions.uniform.Uniform(0, 1)
-    samples = torch.zeros_like(alpha)
-    accepted = torch.zeros(alpha.shape).type(torch.bool)
-    while not accepted.type(torch.uint8).all():
-      # Draw N samples from a Cauchy, our proposal distribution.
-      cauchy_sample = torch.reshape(
-          cauchy.sample((np.prod(alpha.shape),)), alpha.shape)
-      cauchy_sample = cauchy_sample.type(alpha.dtype)
-
-      # Compute the likelihood of each sample under its target distribution.
-      nll = self.nllfun(cauchy_sample,
-                        torch.as_tensor(alpha).to(cauchy_sample),
-                        torch.tensor(1).to(cauchy_sample))
-
-      # Bound the NLL. We don't use the approximate loss as it may cause
-      # unpredictable behavior in the context of sampling.
-      nll_bound = general.lossfun(
-          cauchy_sample,
-          torch.tensor(0., dtype=cauchy_sample.dtype),
-          torch.tensor(1., dtype=cauchy_sample.dtype),
-          approximate=False) + self.log_base_partition_function(alpha)
-
-      # Draw N samples from a uniform distribution, and use each uniform sample
-      # to decide whether or not to accept each proposal sample.
-      uniform_sample = torch.reshape(
-          uniform.sample((np.prod(alpha.shape),)), alpha.shape)
-      uniform_sample = uniform_sample.type(alpha.dtype)
-      accept = uniform_sample <= torch.exp(nll_bound - nll)
-
-      # If a sample is accepted, replace its element in `samples` with the
-      # proposal sample, and set its bit in `accepted` to True.
-      samples = torch.where(accept, cauchy_sample, samples)
-      accepted = accepted | accept
-
-    # Because our distribution is a location-scale family, we sample from
-    # p(x | 0, \alpha, 1) and then scale each sample by `scale`.
-    samples *= scale
-    return samples
+# =============================================================================
+#   def draw_samples(self, alpha, scale):
+#     r"""Draw samples from the robust distribution.
+# 
+#     This function implements Algorithm 1 the paper. This code is written to
+#     allow
+#     for sampling from a set of different distributions, each parametrized by its
+#     own alpha and scale values, as opposed to the more standard approach of
+#     drawing N samples from the same distribution. This is done by repeatedly
+#     performing N instances of rejection sampling for each of the N distributions
+#     until at least one proposal for each of the N distributions has been
+#     accepted.
+#     All samples are drawn with a zero mean, to use a non-zero mean just add each
+#     mean to each sample.
+# 
+#     Args:
+#       alpha: A tensor/scalar or numpy array/scalar of floats where each element
+#         is the shape parameter of that element's distribution.
+#       scale: A tensor/scalar or numpy array/scalar of floats where each element
+#         is the scale parameter of that element's distribution. Must be the same
+#         shape as `alpha`.
+# 
+#     Returns:
+#       A tensor with the same shape and precision as `alpha` and `scale` where
+#       each element is a sample drawn from the distribution specified for that
+#       element by `alpha` and `scale`.
+#     """
+#     alpha = torch.as_tensor(alpha)
+#     scale = torch.as_tensor(scale)
+#     assert (alpha >= 0).all()
+#     assert (scale >= 0).all()
+#     float_dtype = alpha.dtype
+#     assert scale.dtype == float_dtype
+# 
+#     cauchy = torch.distributions.cauchy.Cauchy(0., np.sqrt(2.))
+#     uniform = torch.distributions.uniform.Uniform(0, 1)
+#     samples = torch.zeros_like(alpha)
+#     accepted = torch.zeros(alpha.shape).type(torch.bool)
+#     while not accepted.type(torch.uint8).all():
+#       # Draw N samples from a Cauchy, our proposal distribution.
+#       cauchy_sample = torch.reshape(
+#           cauchy.sample((np.prod(alpha.shape),)), alpha.shape)
+#       cauchy_sample = cauchy_sample.type(alpha.dtype)
+# 
+#       # Compute the likelihood of each sample under its target distribution.
+#       nll = self.nllfun(cauchy_sample,
+#                         torch.as_tensor(alpha).to(cauchy_sample),
+#                         torch.tensor(1).to(cauchy_sample))
+# 
+#       # Bound the NLL. We don't use the approximate loss as it may cause
+#       # unpredictable behavior in the context of sampling.
+#       nll_bound = general.lossfun(
+#           cauchy_sample,
+#           torch.tensor(0., dtype=cauchy_sample.dtype),
+#           torch.tensor(1., dtype=cauchy_sample.dtype),
+#           approximate=False) + self.log_base_partition_function(alpha)
+# 
+#       # Draw N samples from a uniform distribution, and use each uniform sample
+#       # to decide whether or not to accept each proposal sample.
+#       uniform_sample = torch.reshape(
+#           uniform.sample((np.prod(alpha.shape),)), alpha.shape)
+#       uniform_sample = uniform_sample.type(alpha.dtype)
+#       accept = uniform_sample <= torch.exp(nll_bound - nll)
+# 
+#       # If a sample is accepted, replace its element in `samples` with the
+#       # proposal sample, and set its bit in `accepted` to True.
+#       samples = torch.where(accept, cauchy_sample, samples)
+#       accepted = accepted | accept
+# 
+#     # Because our distribution is a location-scale family, we sample from
+#     # p(x | 0, \alpha, 1) and then scale each sample by `scale`.
+#     samples *= scale
+#     return samples
+# =============================================================================

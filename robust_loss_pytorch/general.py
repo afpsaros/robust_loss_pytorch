@@ -118,3 +118,9 @@ def lossfun(x, alpha, scale, approximate=False, epsilon=1e-6):
                             loss_otherwise))))
 
   return loss
+
+if __name__ == '__main__':
+    x = torch.tensor([[1], [2.]])
+    alpha = torch.tensor([2.])
+    scale = torch.tensor([1.])
+    print(lossfun(x, alpha, scale))
