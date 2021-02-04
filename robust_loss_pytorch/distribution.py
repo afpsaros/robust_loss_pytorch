@@ -125,7 +125,8 @@ def inv_partition_spline_curve(x):
       3.75 + 0.25 * util.exp_safe(x * 3.6 - 28.8))
   return alpha
 
-
+import sys, os
+sys.path.insert(0, os.path.abspath('../Learned-loss/'))
 class Distribution():
   # This is only a class so that we can pre-load the partition function spline.
 
