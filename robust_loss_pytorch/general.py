@@ -26,7 +26,10 @@ from __future__ import print_function
 
 import numpy as np
 import torch
-from robust_loss_pytorch import util
+
+import sys, os
+sys.path.append(os.path.abspath('../robust_loss_pytorch/robust_loss_pytorch/'))
+import util
 
 
 def lossfun(x, alpha, scale, approximate=False, epsilon=1e-6):

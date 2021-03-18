@@ -20,19 +20,24 @@ required for evaluating the negative log-likelihood (NLL) of the distribution
 and for sampling from the distribution.
 """
 
+
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import numbers
 
+import sys, os
+sys.path.append(os.path.abspath('../robust_loss_pytorch/robust_loss_pytorch/'))
+
 from pkg_resources import resource_stream
 import mpmath
 import numpy as np
 import torch
-from robust_loss_pytorch import cubic_spline
-from robust_loss_pytorch import general
-from robust_loss_pytorch import util
+import cubic_spline
+import general
+import util
 
 
 def analytical_base_partition_function(numer, denom):
